@@ -1,4 +1,4 @@
-import { Menu, Layers, Moon } from 'lucide-react';
+import { Menu, Layers, Moon, Sun } from 'lucide-react';
 
 interface HeaderProps {
   onToggleSidebar: () => void;
@@ -8,12 +8,12 @@ interface HeaderProps {
 
 export default function Header({ onToggleSidebar, onToggleDarkMode, darkMode }: HeaderProps) {
   return (
-    <header className="fixed top-0 left-0 right-0 z-40 h-16 bg-background-light dark:bg-background-dark border-b border-neutral/20 flex items-center justify-between px-4 transition-colors">
+    <header className="fixed top-0 left-0 right-0 z-40 h-16 bg-background-light dark:bg-background-dark border-b border-neutral/20 flex items-center justify-between px-4">
       <button
         type="button"
         onClick={onToggleSidebar}
         aria-label="Toggle sidebar"
-        className="p-2 rounded-lg text-primary hover:bg-neutral/10 dark:text-white transition-colors"
+        className="p-2 rounded-lg text-primary hover:bg-neutral/10 transition-colors"
       >
         <Menu size={22} />
       </button>
@@ -33,7 +33,7 @@ export default function Header({ onToggleSidebar, onToggleDarkMode, darkMode }: 
         aria-label="Toggle dark mode"
         className="p-2 rounded-lg text-primary dark:text-white hover:bg-neutral/10 transition-colors"
       >
-        <Moon size={20} />
+        {darkMode ? <Sun size={20} /> : <Moon size={20} />}
       </button>
     </header>
   );
