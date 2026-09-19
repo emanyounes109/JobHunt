@@ -1,10 +1,13 @@
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Sunrise, Play, PartyPopper } from 'lucide-react';
 import StatCard from '../components/dashboard/StatCard';
 import InterviewListItem from '../components/dashboard/InterviewListItem';
 import DueCardListItem from '../components/flashcards/DueCardListItem';
+import JobDetailModal from '../components/jobs/JobDetailModal';
 import { useJobsStore } from '../store/useJobsStore';
 import { useLeitner } from '../hooks/useLeitner';
+import type { Job } from '../types/job.types';
 
 const today = new Date();
 const formattedDate = today.toLocaleDateString('en-US', {
@@ -12,11 +15,6 @@ const formattedDate = today.toLocaleDateString('en-US', {
   month: 'long',
   day: 'numeric',
 });
-
-const daysUntil = (isoDate: string): number => {
-  const diffMs = new Date(isoDate).getTime() - Date.now();
-  return Math.max(0, Math.round(diffMs / (1000 * 60 * 60 * 24)));
-};
 
 const formatShortDate = (isoDate: string): string =>
   new Date(isoDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -26,19 +24,28 @@ export default function DashboardPage() {
   const jobs = useJobsStore((s) => s.jobs);
   const { dueCards, totalCards, masteredCount, needsWorkCount } = useLeitner();
 
+  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+
   const activeJobs = jobs.filter((job) => job.status === 'applied' || job.status === 'interview');
   const appliedCount = jobs.filter((job) => job.status === 'applied').length;
   const interviewingCount = jobs.filter((job) => job.status === 'interview').length;
 
+  // Any job with status "interview" AND an interviewDate set — future or
+  // past. Sorted soonest-first so the closest interview shows on top.
   const interviewJobs = jobs
     .filter((job) => job.status === 'interview' && job.interviewDate)
     .sort((a, b) => new Date(a.interviewDate!).getTime() - new Date(b.interviewDate!).getTime());
 
   const nextInterview = interviewJobs[0];
 
+  const handleJobClick = (job: Job) => {
+    setSelectedJob(job);
+    setIsDetailOpen(true);
+  };
+
   return (
     <div className="px-4 md:px-8 py-6 max-w-5xl mx-auto">
-      {/* Greeting */}
       <header className="flex items-center gap-3 mb-6">
         <div className="w-10 h-10 rounded-xl bg-accent/15 flex items-center justify-center shrink-0">
           <Sunrise size={20} className="text-accent" />
@@ -49,7 +56,6 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      {/* Stat cards */}
       <section className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
         <StatCard
           label="Active Applications"
@@ -71,7 +77,6 @@ export default function DashboardPage() {
         />
       </section>
 
-      {/* Upcoming interviews */}
       <section className="mb-8">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold text-[#151C24] dark:text-white">Upcoming Interviews</h2>
@@ -85,22 +90,12 @@ export default function DashboardPage() {
         ) : (
           <div className="flex flex-col gap-3">
             {interviewJobs.map((job) => (
-              <InterviewListItem
-                key={job.id}
-                interview={{
-                  company: job.company,
-                  role: job.role,
-                  interviewDate: formatShortDate(job.interviewDate!),
-                  daysUntil: daysUntil(job.interviewDate!),
-                  tags: job.tags,
-                }}
-              />
+              <InterviewListItem key={job.id} job={job} onClick={() => handleJobClick(job)} />
             ))}
           </div>
         )}
       </section>
 
-      {/* Due Today — flashcards */}
       <section>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold text-[#151C24] dark:text-white">Due Today</h2>
@@ -169,6 +164,12 @@ export default function DashboardPage() {
           </div>
         </div>
       </section>
+
+      <JobDetailModal
+        isOpen={isDetailOpen}
+        onClose={() => setIsDetailOpen(false)}
+        job={selectedJob}
+      />
     </div>
   );
 }

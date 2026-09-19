@@ -15,6 +15,7 @@ interface FormState {
   role: string;
   status: JobStatus;
   appliedDate: string;
+  interviewDate: string;
   tags: string[];
   notes: string;
 }
@@ -40,6 +41,7 @@ const EMPTY_FORM: FormState = {
   role: '',
   status: 'applied',
   appliedDate: todayIso(),
+  interviewDate: '',
   tags: [],
   notes: '',
 };
@@ -55,7 +57,6 @@ export default function JobModal({ isOpen, onClose, initialData }: JobModalProps
   const [errors, setErrors] = useState<FormErrors>({});
   const [submitted, setSubmitted] = useState(false);
 
-  // Sync form state whenever initialData changes (opening edit vs add mode)
   useEffect(() => {
     if (initialData) {
       setForm({
@@ -63,6 +64,7 @@ export default function JobModal({ isOpen, onClose, initialData }: JobModalProps
         role: initialData.role,
         status: initialData.status,
         appliedDate: initialData.appliedDate.slice(0, 10),
+        interviewDate: initialData.interviewDate?.slice(0, 10) ?? '',
         tags: initialData.tags,
         notes: initialData.notes ?? '',
       });
@@ -128,6 +130,10 @@ export default function JobModal({ isOpen, onClose, initialData }: JobModalProps
       role: form.role.trim(),
       status: form.status,
       appliedDate: form.appliedDate,
+      // Only persisted when the user actually set a date — an empty string
+      // becomes undefined so Dashboard's "Upcoming Interviews" filter,
+      // which requires job.interviewDate to be truthy, works correctly.
+      interviewDate: form.interviewDate || undefined,
       tags: form.tags,
       notes: form.notes.trim() || undefined,
     };
@@ -154,7 +160,6 @@ export default function JobModal({ isOpen, onClose, initialData }: JobModalProps
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={isEditing ? 'Edit Job' : 'Add New Job'}>
       <form onSubmit={handleSubmit} noValidate className="space-y-5">
-        {/* Row 1: Company / Role */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label htmlFor="company" className={labelCls}>
@@ -168,9 +173,7 @@ export default function JobModal({ isOpen, onClose, initialData }: JobModalProps
               onChange={(e) => updateField('company', e.target.value)}
               className={errors.company ? errorInputCls : inputCls}
             />
-            {errors.company && (
-              <p className="mt-1 text-xs font-medium text-danger">{errors.company}</p>
-            )}
+            {errors.company && <p className="mt-1 text-xs font-medium text-danger">{errors.company}</p>}
           </div>
 
           <div>
@@ -185,13 +188,10 @@ export default function JobModal({ isOpen, onClose, initialData }: JobModalProps
               onChange={(e) => updateField('role', e.target.value)}
               className={errors.role ? errorInputCls : inputCls}
             />
-            {errors.role && (
-              <p className="mt-1 text-xs font-medium text-danger">{errors.role}</p>
-            )}
+            {errors.role && <p className="mt-1 text-xs font-medium text-danger">{errors.role}</p>}
           </div>
         </div>
 
-        {/* Row 2: Status / Applied Date */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label htmlFor="status" className={labelCls}>
@@ -223,15 +223,33 @@ export default function JobModal({ isOpen, onClose, initialData }: JobModalProps
                 onChange={(e) => updateField('appliedDate', e.target.value)}
                 className={`${inputCls} pr-9`}
               />
-              <Calendar
-                size={16}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral pointer-events-none"
-              />
+              <Calendar size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral pointer-events-none" />
             </div>
           </div>
         </div>
 
-        {/* Tags */}
+        {/* Interview Date — only relevant once the job has reached the
+            Interview stage. This is what feeds Dashboard's "Upcoming
+            Interviews" section; without it, interview-status jobs never
+            appear there. */}
+        {form.status === 'interview' && (
+          <div>
+            <label htmlFor="interviewDate" className={labelCls}>
+              Interview Date
+            </label>
+            <div className="relative">
+              <input
+                id="interviewDate"
+                type="date"
+                value={form.interviewDate}
+                onChange={(e) => updateField('interviewDate', e.target.value)}
+                className={`${inputCls} pr-9`}
+              />
+              <Calendar size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral pointer-events-none" />
+            </div>
+          </div>
+        )}
+
         <div>
           <label className={labelCls}>Tags</label>
 
@@ -255,7 +273,6 @@ export default function JobModal({ isOpen, onClose, initialData }: JobModalProps
             })}
           </div>
 
-          {/* Custom tags already added (not in suggested list) */}
           {form.tags.filter((t) => !SUGGESTED_TAGS.includes(t)).length > 0 && (
             <div className="flex flex-wrap gap-2 mt-2">
               {form.tags
@@ -298,7 +315,6 @@ export default function JobModal({ isOpen, onClose, initialData }: JobModalProps
           </div>
         </div>
 
-        {/* Notes */}
         <div>
           <label htmlFor="notes" className={labelCls}>
             Notes
@@ -313,7 +329,6 @@ export default function JobModal({ isOpen, onClose, initialData }: JobModalProps
           />
         </div>
 
-        {/* Footer buttons */}
         <div className="flex justify-end gap-3 pt-2">
           <button
             type="button"
