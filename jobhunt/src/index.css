@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+/* class-based dark mode toggle */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  /* Custom Theme Colors for Tailwind v4 */
+  --color-primary: #3D5A73;
+  --color-primary-hover: #334B60;
+  --color-primary-active: #2C4152;
+
+  --color-accent: #F0A868;
+  --color-success: #6B9080;
+  --color-danger: #C97064;
+  --color-neutral: #8B9694;
+
+  --color-background-light: #FAF9F6;
+  --color-background-dark: #151C24;
+
+  --color-surface: #FFFFFF;
+  --color-surface-dark: #1C242E;
+
+  --shadow-soft: 0 10px 30px -12px rgba(21, 28, 36, 0.12);
+}
