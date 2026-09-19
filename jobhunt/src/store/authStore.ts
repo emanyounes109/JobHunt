@@ -1,8 +1,8 @@
+
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 
 import type { LoginPayload, SignupPayload, User } from '../types/auth';
-import { setCurrentUserId } from './currentUser';
 import { useJobsStore } from './useJobsStore';
 import { useCardsStore } from './useCardsStore';
 
@@ -36,6 +36,12 @@ const createId = (): string =>
 
 const idFromEmail = (email: string): string => `user_${email.trim().toLowerCase()}`;
 
+
+function switchDataToUser(userId: string | null): void {
+  useJobsStore.getState().loadForUser(userId);
+  useCardsStore.getState().loadForUser(userId);
+}
+
 const INITIAL_STATE: AuthState = {
   user: null,
   isAuthenticated: false,
@@ -54,11 +60,13 @@ export const useAuthStore = create<AuthStore>()(
         set({ isLoading: true, error: null });
         try {
           await fakeNetworkDelay();
+          const userId = idFromEmail(email);
           set({
-            user: { id: idFromEmail(email), name: email.split('@')[0] || 'You', email, isGuest: false },
+            user: { id: userId, name: email.split('@')[0] || 'You', email, isGuest: false },
             isAuthenticated: true,
             isLoading: false,
           });
+          switchDataToUser(userId);
         } catch {
           set({ isLoading: false, error: 'Something went wrong. Please try again.' });
         }
@@ -68,25 +76,33 @@ export const useAuthStore = create<AuthStore>()(
         set({ isLoading: true, error: null });
         try {
           await fakeNetworkDelay();
+          const userId = idFromEmail(email);
           set({
-            user: { id: idFromEmail(email), name, email, isGuest: false },
+            user: { id: userId, name, email, isGuest: false },
             isAuthenticated: true,
             isLoading: false,
           });
+          switchDataToUser(userId);
         } catch {
           set({ isLoading: false, error: 'Could not create your account. Please try again.' });
         }
       },
 
-      continueAsGuest: () =>
+      continueAsGuest: () => {
+        const userId = createId();
         set({
-          user: { id: createId(), name: 'Guest', email: '', isGuest: true },
+          user: { id: userId, name: 'Guest', email: '', isGuest: true },
           isAuthenticated: true,
           isLoading: false,
           error: null,
-        }),
+        });
+        switchDataToUser(userId);
+      },
 
-      logout: () => set({ ...INITIAL_STATE }),
+      logout: () => {
+        set({ ...INITIAL_STATE });
+        switchDataToUser(null);
+      },
 
       clearError: () => set({ error: null }),
     }),
@@ -97,6 +113,10 @@ export const useAuthStore = create<AuthStore>()(
         user: state.user,
         isAuthenticated: state.isAuthenticated,
       }),
+
+      onRehydrateStorage: () => (state) => {
+        switchDataToUser(state?.user?.id ?? null);
+      },
     },
   ),
 );
@@ -106,27 +126,5 @@ export const useAuthStore = create<AuthStore>()(
 export const selectUser = (s: AuthStore) => s.user;
 export const selectIsAuthenticated = (s: AuthStore) => s.isAuthenticated;
 export const selectAuthError = (s: AuthStore) => s.error;
-
-/*  keep jobs/cards scoped to the user  */
-
-let lastSyncedUserId: string | null | undefined;
-
-function syncPerUserStores(userId: string | null): void {
-  if (userId === lastSyncedUserId) return;
-  lastSyncedUserId = userId;
-
-  setCurrentUserId(userId);
-
-  useJobsStore.setState({ jobs: [] });
-  useCardsStore.setState({ cards: [] });
-
-  void useJobsStore.persist.rehydrate();
-  void useCardsStore.persist.rehydrate();
-}
-
-syncPerUserStores(useAuthStore.getState().user?.id ?? null);
-useAuthStore.subscribe((state) => {
-  syncPerUserStores(state.user?.id ?? null);
-});
 
 export default useAuthStore;
